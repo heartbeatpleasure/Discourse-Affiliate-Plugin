@@ -45,7 +45,7 @@ module ::DiscourseAffiliate
       return false unless host_matches?(rule, uri.host.downcase)
       return false unless Array(rule["allowed_contexts"] || ["public_post"]).include?("public_post")
       return false if rule["staff_only"] == true && !@staff
-      return false if @cohort >= rule.fetch("rollout_percentage", 0).to_i.clamp(0, 100)
+      return false if !@staff && @cohort >= rule.fetch("rollout_percentage", 0).to_i.clamp(0, 100)
       return false unless category_allowed?(rule)
       return false if path_excluded?(rule, uri.path.presence || "/")
       return false if disallowed_query?(rule, uri)

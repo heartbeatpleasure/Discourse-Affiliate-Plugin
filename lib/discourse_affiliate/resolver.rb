@@ -75,7 +75,7 @@ module ::DiscourseAffiliate
         should_apply =
           !local_observe_only &&
           !matches.fetch(key).observe_only &&
-          item["decision"] == "rewrite" &&
+          item["decision"] == "rewritten" &&
           rewrite.present?
 
         {
