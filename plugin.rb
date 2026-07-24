@@ -2,7 +2,7 @@
 
 # name: Discourse-Affiliate-Resolver
 # about: Privacy-safe affiliate link resolution for public Discourse topic posts.
-# version: 0.1.5
+# version: 0.1.6
 # authors: Chris
 # url: https://github.com/xxxxxx/Discourse-Affiliate-Plugin
 
@@ -12,7 +12,7 @@ enabled_site_setting :affiliate_resolver_enabled
 
 module ::DiscourseAffiliate
   PLUGIN_NAME = "Discourse-Affiliate-Resolver"
-  PLUGIN_VERSION = "0.1.5"
+  PLUGIN_VERSION = "0.1.6"
 end
 
 after_initialize do

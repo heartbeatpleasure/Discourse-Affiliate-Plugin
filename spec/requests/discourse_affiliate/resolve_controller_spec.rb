@@ -27,6 +27,22 @@ RSpec.describe DiscourseAffiliate::ResolveController do
     expect(response.parsed_body["reason"]).to eq("rules_unavailable")
   end
 
+  it "normalizes indexed browser form parameters" do
+    raw =
+      ActionController::Parameters.new(
+        "0" => {
+          "key" => "link-1",
+          "url" => "https://merchant.example/product",
+        },
+      )
+
+    normalized = described_class.new.send(:normalize_links, raw)
+
+    expect(normalized).to eq(
+      [{ key: "link-1", url: "https://merchant.example/product" }],
+    )
+  end
+
   it "does not process private messages" do
     message = Fabricate(:private_message_post, user: user)
 
@@ -99,6 +115,7 @@ RSpec.describe DiscourseAffiliate::ResolveController do
          }
 
     expect(response.status).to eq(200)
+    expect(response.parsed_body["reason"]).to eq("success")
     result = response.parsed_body.fetch("results").first
     expect(result["decision"]).to eq("rewritten")
     expect(result["applied"]).to eq(true)

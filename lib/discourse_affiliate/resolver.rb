@@ -66,7 +66,7 @@ module ::DiscourseAffiliate
 
       started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       result = ::DiscourseAffiliate::PlatformClient.new.resolve(platform_payload)
-      parsed = validate_response!(result.fetch(:body), request_id, candidates.map { |candidate| candidate[:key] })
+      parsed = validate_response(result.fetch(:body), request_id, candidates.map { |candidate| candidate[:key] })
       local_observe_only = SiteSetting.affiliate_resolver_local_observe_only
 
       client_results = parsed.map do |item|

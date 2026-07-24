@@ -3,6 +3,11 @@ import { ajax } from "discourse/lib/ajax";
 
 const MAX_LINKS = 50;
 const PROCESSED_ATTRIBUTE = "data-affiliate-resolver-processed";
+export const COOKED_DECORATOR_OPTIONS = {
+  id: "discourse-affiliate-resolver",
+  onlyStream: true,
+};
+
 const EXCLUDED_SELECTOR = [
   "aside.onebox a",
   ".onebox a",
@@ -82,6 +87,10 @@ function applyRewrite(anchor, rewrite) {
   }
 }
 
+export function postFromHelper(helper) {
+  return helper?.getModel?.() ?? helper?.getPost?.();
+}
+
 async function processPost(element, post) {
   const entries = eligibleAnchors(element);
   if (!entries.length) {
@@ -131,13 +140,13 @@ export default apiInitializer("1.0", (api) => {
 
   api.decorateCookedElement(
     (element, helper) => {
-      const post = helper.getPost?.();
+      const post = postFromHelper(helper);
       if (!post?.id) {
         return;
       }
 
       queueMicrotask(() => processPost(element, post));
     },
-    { id: "discourse-affiliate-resolver" }
+    COOKED_DECORATOR_OPTIONS
   );
 });

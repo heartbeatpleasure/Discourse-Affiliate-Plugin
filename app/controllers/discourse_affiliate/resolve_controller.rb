@@ -38,9 +38,21 @@ module ::DiscourseAffiliate
     end
 
     def normalize_links(raw)
-      return [] unless raw.is_a?(Array) || raw.respond_to?(:to_unsafe_h)
+      entries =
+        if raw.is_a?(Array)
+          raw
+        else
+          values = raw.respond_to?(:to_unsafe_h) ? raw.to_unsafe_h : raw
+          return [] unless values.is_a?(Hash)
 
-      Array(raw).first(::DiscourseAffiliate::Resolver::MAX_LINKS).filter_map do |entry|
+          if values.key?(:key) || values.key?("key") || values.key?(:url) || values.key?("url")
+            [values]
+          else
+            values.values
+          end
+        end
+
+      entries.first(::DiscourseAffiliate::Resolver::MAX_LINKS).filter_map do |entry|
         values = entry.respond_to?(:to_unsafe_h) ? entry.to_unsafe_h : entry
         next unless values.respond_to?(:[])
 
