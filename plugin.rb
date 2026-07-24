@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 # name: Discourse-Affiliate-Resolver
-# about: Privacy-safe affiliate link resolution for public Discourse topic posts.
-# version: 0.1.6
+# about: Privacy-safe affiliate link resolution for Discourse posts, personal messages, and Chat.
+# version: 0.1.7
 # authors: Chris
 # url: https://github.com/xxxxxx/Discourse-Affiliate-Plugin
 
@@ -10,9 +10,11 @@ add_admin_route "admin.affiliate_resolver.title", "affiliateResolver"
 
 enabled_site_setting :affiliate_resolver_enabled
 
+register_asset "stylesheets/common/affiliate-resolver.scss"
+
 module ::DiscourseAffiliate
   PLUGIN_NAME = "Discourse-Affiliate-Resolver"
-  PLUGIN_VERSION = "0.1.6"
+  PLUGIN_VERSION = "0.1.7"
 end
 
 after_initialize do
@@ -36,11 +38,29 @@ after_initialize do
   require_relative "lib/discourse_affiliate/rule_matcher"
   require_relative "lib/discourse_affiliate/source_reference"
   require_relative "lib/discourse_affiliate/post_link_extractor"
+  require_relative "lib/discourse_affiliate/source_context"
+  require_relative "lib/discourse_affiliate/moderator_override_store"
   require_relative "lib/discourse_affiliate/resolver"
   require_relative "lib/discourse_affiliate/admin_health"
 
+  [::Post, (defined?(::Chat::Message) ? ::Chat::Message : nil)].compact.each do |model|
+    model.register_custom_field_type(
+      ::DiscourseAffiliate::ModeratorOverrideStore::SOURCE_DISABLED_FIELD,
+      :boolean,
+    )
+    model.register_custom_field_type(
+      ::DiscourseAffiliate::ModeratorOverrideStore::EXCLUDED_LINK_HASHES_FIELD,
+      :json,
+      max_length: 10_000,
+    )
+  end
+
   require_dependency File.expand_path(
     "app/controllers/discourse_affiliate/resolve_controller.rb",
+    __dir__,
+  )
+  require_dependency File.expand_path(
+    "app/controllers/discourse_affiliate/moderator_overrides_controller.rb",
     __dir__,
   )
   require_dependency File.expand_path(
@@ -63,6 +83,8 @@ after_initialize do
       affiliate_resolver_platform_api_token
       affiliate_resolver_local_observe_only
       affiliate_resolver_local_staff_only
+      affiliate_resolver_personal_messages_enabled
+      affiliate_resolver_chat_enabled
       affiliate_resolver_request_timeout_ms
     ].include?(name.to_sym)
 
@@ -72,6 +94,9 @@ after_initialize do
 
   Discourse::Application.routes.append do
     post "/affiliate-resolver/resolve" => "discourse_affiliate/resolve#create",
+         defaults: { format: :json }
+    post "/affiliate-resolver/moderator-override" =>
+           "discourse_affiliate/moderator_overrides#update",
          defaults: { format: :json }
 
     # Match the proven Heartrate admin pattern: a dedicated overview plus

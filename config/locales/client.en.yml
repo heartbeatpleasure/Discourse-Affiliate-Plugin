@@ -3,6 +3,16 @@ en:
     affiliate_resolver:
       title: "Affiliate Resolver"
       nav_title: "Affiliate Resolver"
+      link_indicator: "Affiliate link"
+      link_indicator_merchant: "Affiliate link to %{merchant}"
+      moderator:
+        controls: "Affiliate resolver moderator controls"
+        reresolve: "Re-resolve links"
+        disable_source: "Keep all links original"
+        enable_source: "Enable link resolution"
+        keep_original: "Keep original link"
+        allow_link: "Allow affiliate rewrite"
+        action_failed: "The affiliate resolver setting could not be updated."
 
   admin_js:
     admin:
@@ -122,7 +132,7 @@ en:
           warnings:
             plugin_disabled:
               title: "Affiliate Resolver is disabled"
-              description: "No public-post links are processed while the local plugin switch is disabled."
+              description: "No eligible links are processed while the local plugin switch is disabled."
             url_missing:
               title: "Platform URL is missing"
               description: "Enter the HTTPS origin of the affiliate platform in plugin settings."
@@ -171,7 +181,7 @@ en:
         logs:
           short_title: "Logs"
           title: "Affiliate Resolver Logs"
-          description: "Sanitized operational events only. No tokens, usernames, post text, complete topic URLs, or submitted links are stored here."
+          description: "Sanitized operational events only. No tokens, usernames, post or message text, conversation details, complete source URLs, or submitted links are stored here."
           refresh: "Refresh"
           refreshing: "Refreshing…"
           back_to_overview: "Back to overview"

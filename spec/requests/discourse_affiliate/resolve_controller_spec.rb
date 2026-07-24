@@ -43,7 +43,7 @@ RSpec.describe DiscourseAffiliate::ResolveController do
     )
   end
 
-  it "does not process private messages" do
+  it "keeps personal messages disabled by default" do
     message = Fabricate(:private_message_post, user: user)
 
     post "/affiliate-resolver/resolve.json",
@@ -53,36 +53,53 @@ RSpec.describe DiscourseAffiliate::ResolveController do
          }
 
     expect(response.status).to eq(200)
-    expect(response.parsed_body["reason"]).to eq("private_context")
+    expect(response.parsed_body["reason"]).to eq("context_disabled")
+  end
+
+  it "sends an explicitly enabled personal-message context without participant data" do
+    SiteSetting.affiliate_resolver_personal_messages_enabled = true
+    message = Fabricate(
+      :private_message_post,
+      user: user,
+      cooked: '<p><a href="https://merchant.example/product">Product</a></p>',
+    )
+    rules_for(%w[private_message])
+    captured_payload = nil
+    fake_client = Object.new
+    fake_client.define_singleton_method(:resolve) do |payload|
+      captured_payload = payload
+      {
+        body: {
+          "request_id" => payload[:request_id],
+          "results" => [
+            {
+              "key" => "link-1",
+              "decision" => "observed",
+              "reason_code" => "observe_only",
+              "rewrite" => nil,
+            },
+          ],
+        },
+        http_status: 200,
+      }
+    end
+    DiscourseAffiliate::PlatformClient.stubs(:new).returns(fake_client)
+
+    post "/affiliate-resolver/resolve.json",
+         params: {
+           post_id: message.id,
+           links: [{ key: "link-1", url: "https://merchant.example/product" }],
+         }
+
+    expect(response.status).to eq(200)
+    expect(captured_payload.dig(:context, :kind)).to eq("private_message")
+    expect(captured_payload[:context].keys).not_to include(:username, :participants, :post_text)
+    expect(captured_payload.dig(:context, :source_ref_hash)).to match(/\A[a-f0-9]{64}\z/)
   end
 
   it "applies the platform rewritten decision when local safeguards allow it" do
     SiteSetting.affiliate_resolver_local_observe_only = false
-    DiscourseAffiliate::RulesCache.stubs(:current).returns(
-      {
-        "payload" => {
-          "enabled" => true,
-          "observe_only" => false,
-          "rules" => [
-            {
-              "host" => "merchant.example",
-              "include_subdomains" => false,
-              "path_exclusions" => [],
-              "query_allowlist" => [],
-              "query_denylist" => [],
-              "affiliate_parameters" => ["aff"],
-              "allowed_contexts" => ["public_post"],
-              "allowed_category_ids" => [],
-              "excluded_category_ids" => [],
-              "staff_only" => false,
-              "observe_only" => false,
-              "rollout_percentage" => 100,
-              "priority" => 100,
-            },
-          ],
-        },
-      },
-    )
+    rules_for(%w[public_post])
 
     fake_client = Object.new
     fake_client.define_singleton_method(:resolve) do |payload|
@@ -99,6 +116,9 @@ RSpec.describe DiscourseAffiliate::ResolveController do
                 "external" => false,
                 "click_url" => nil,
                 "referrer_policy" => "no-referrer",
+                "rel" => "nofollow ugc sponsored noreferrer noopener",
+                "merchant" => "Example merchant",
+                "disclosure" => "Affiliate link",
               },
             },
           ],
@@ -120,5 +140,37 @@ RSpec.describe DiscourseAffiliate::ResolveController do
     expect(result["decision"]).to eq("rewritten")
     expect(result["applied"]).to eq(true)
     expect(result.dig("rewrite", "href")).to eq("https://affiliate.example/go/test-route")
+    expect(result.dig("rewrite", "merchant")).to eq("Example merchant")
+    expect(result.dig("rewrite", "disclosure")).to eq("Affiliate link")
+  end
+
+  private
+
+  def rules_for(contexts)
+    DiscourseAffiliate::RulesCache.stubs(:current).returns(
+      {
+        "payload" => {
+          "enabled" => true,
+          "observe_only" => false,
+          "rules" => [
+            {
+              "host" => "merchant.example",
+              "include_subdomains" => false,
+              "path_exclusions" => [],
+              "query_allowlist" => [],
+              "query_denylist" => [],
+              "affiliate_parameters" => ["aff"],
+              "allowed_contexts" => contexts,
+              "allowed_category_ids" => [],
+              "excluded_category_ids" => [],
+              "staff_only" => false,
+              "observe_only" => false,
+              "rollout_percentage" => 100,
+              "priority" => 100,
+            },
+          ],
+        },
+      },
+    )
   end
 end

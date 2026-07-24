@@ -8,10 +8,22 @@ require "securerandom"
 module ::DiscourseAffiliate
   class Resolver
     MAX_LINKS = 50
+    ALLOWED_REL_VALUES = %w[nofollow ugc sponsored noreferrer noopener].freeze
 
-    def resolve(post:, links:, user:)
+    def resolve(source:, links:, user:)
       return response([], reason: "disabled") unless SiteSetting.affiliate_resolver_enabled
       return response([], reason: "staff_only") if SiteSetting.affiliate_resolver_local_staff_only && !user.staff?
+
+      cooked_urls = ::DiscourseAffiliate::PostLinkExtractor.new(source.cooked).eligible_urls
+      browser_links = normalized_browser_links(links, cooked_urls)
+      overrides = ::DiscourseAffiliate::ModeratorOverrideStore.new(source.record)
+
+      if overrides.source_disabled?
+        disabled_results = browser_links.map do |link|
+          local_result(link[:key], "moderator_disabled")
+        end
+        return response(disabled_results, reason: "moderator_disabled", source_disabled: true)
+      end
 
       cache = ::DiscourseAffiliate::RulesCache.current
       return response([], reason: "rules_unavailable") if cache.blank?
@@ -20,47 +32,47 @@ module ::DiscourseAffiliate
       cohort = cohort_for(user)
       matcher = ::DiscourseAffiliate::RuleMatcher.new(
         payload: payload,
-        category_id: post.topic.category_id,
+        context_kind: source.kind,
+        category_id: source.category_id,
         staff: user.staff?,
         cohort: cohort,
       )
       return response([], reason: "platform_disabled") unless matcher.enabled?
 
-      cooked_urls = ::DiscourseAffiliate::PostLinkExtractor.new(post.cooked).eligible_urls
       candidates = []
       matches = {}
-      seen_keys = Set.new
+      local_results = []
 
-      Array(links).first(MAX_LINKS).each do |link|
-        key = link[:key].to_s
-        url = link[:url].to_s
-        next unless key.match?(/\A[A-Za-z0-9_-]{1,64}\z/)
-        next if seen_keys.include?(key)
-        next unless url.bytesize <= 4096
-        next unless cooked_urls.include?(url)
-
-        matched = matcher.match(url)
+      browser_links.each do |link|
+        matched = matcher.match(link[:url])
         next unless matched
 
-        seen_keys << key
-        candidates << { key: key, url: url }
-        matches[key] = matched
+        if overrides.link_excluded?(link[:url])
+          local_results << local_result(link[:key], "moderator_excluded")
+          next
+        end
+
+        candidates << link
+        matches[link[:key]] = matched
       end
 
-      return response([], reason: "no_eligible_links") if candidates.empty?
+      if candidates.empty?
+        reason = local_results.any? ? "moderator_excluded" : "no_eligible_links"
+        return response(local_results, reason: reason)
+      end
 
       request_id = SecureRandom.uuid
       platform_payload = {
         request_id: request_id,
         plugin_version: ::DiscourseAffiliate::PLUGIN_VERSION,
         context: {
-          kind: "public_post",
-          category_id: post.topic.category_id,
-          topic_id: post.topic_id,
+          kind: source.kind,
+          category_id: source.category_id,
+          topic_id: source.topic_id,
           staff: user.staff?,
           cohort: cohort,
-          source_ref_hash: ::DiscourseAffiliate::SourceReference.hash(post.id),
-        },
+          source_ref_hash: ::DiscourseAffiliate::SourceReference.hash(source.source_type, source.source_id),
+        }.compact,
         links: candidates,
       }
 
@@ -69,7 +81,7 @@ module ::DiscourseAffiliate
       parsed = validate_response(result.fetch(:body), request_id, candidates.map { |candidate| candidate[:key] })
       local_observe_only = SiteSetting.affiliate_resolver_local_observe_only
 
-      client_results = parsed.map do |item|
+      platform_results = parsed.map do |item|
         key = item.fetch("key")
         rewrite = validate_rewrite(item["rewrite"])
         should_apply =
@@ -87,6 +99,7 @@ module ::DiscourseAffiliate
         }
       end
 
+      ordered_results = order_results(browser_links, platform_results + local_results)
       latency_ms = elapsed_ms(started_at)
       now = Time.zone.now
       ::DiscourseAffiliate::StateStore.write(
@@ -94,7 +107,7 @@ module ::DiscourseAffiliate
         last_resolve_error_code: nil,
         last_resolve_latency_ms: latency_ms,
         last_resolve_link_count: candidates.length,
-        last_resolve_result_count: client_results.length,
+        last_resolve_result_count: ordered_results.length,
       )
       if SiteSetting.affiliate_resolver_debug_logging_enabled
         ::DiscourseAffiliate::EventLog.record(
@@ -103,13 +116,14 @@ module ::DiscourseAffiliate
           details: {
             latency_ms: latency_ms,
             link_count: candidates.length,
-            result_count: client_results.length,
+            result_count: ordered_results.length,
             http_status: result[:http_status],
+            context_kind: source.kind,
           },
         )
       end
 
-      response(client_results, reason: "success")
+      response(ordered_results, reason: "success")
     rescue ::DiscourseAffiliate::PlatformClient::Error => error
       record_error(error.code, error)
       response([], reason: "platform_unavailable")
@@ -120,10 +134,42 @@ module ::DiscourseAffiliate
 
     private
 
-    def response(results, reason:)
+    def normalized_browser_links(links, cooked_urls)
+      seen_keys = Set.new
+
+      Array(links).first(MAX_LINKS).filter_map do |link|
+        key = link[:key].to_s
+        normalized_url = ::DiscourseAffiliate::PostLinkExtractor.normalize_url(link[:url])
+        next unless key.match?(/\A[A-Za-z0-9_-]{1,64}\z/)
+        next if seen_keys.include?(key)
+        next if normalized_url.blank? || normalized_url.bytesize > 4096
+        next unless cooked_urls.include?(normalized_url)
+
+        seen_keys << key
+        { key: key, url: normalized_url }
+      end
+    end
+
+    def local_result(key, reason_code)
+      {
+        key: key,
+        decision: "skipped",
+        reason_code: reason_code,
+        applied: false,
+        rewrite: nil,
+      }
+    end
+
+    def order_results(browser_links, results)
+      by_key = results.index_by { |item| item[:key] }
+      browser_links.filter_map { |link| by_key[link[:key]] }
+    end
+
+    def response(results, reason:, source_disabled: false)
       {
         observe_only: SiteSetting.affiliate_resolver_local_observe_only,
         reason: reason,
+        source_disabled: source_disabled,
         results: results,
       }
     end
@@ -164,11 +210,16 @@ module ::DiscourseAffiliate
         return nil unless click_uri.is_a?(URI::HTTPS) && click_uri.host.present? && click_uri.userinfo.blank?
       end
 
+      rel_values = raw["rel"].to_s.split(/\s+/) & ALLOWED_REL_VALUES
+
       {
         href: href,
         external: raw["external"] == true,
         click_url: SiteSetting.affiliate_resolver_click_beacon_enabled ? click_url : nil,
         referrer_policy: %w[no-referrer origin].include?(raw["referrer_policy"].to_s) ? raw["referrer_policy"].to_s : "no-referrer",
+        rel: rel_values.join(" "),
+        merchant: raw["merchant"].to_s.first(120).presence,
+        disclosure: raw["disclosure"].to_s.first(500).presence,
       }
     rescue URI::InvalidURIError
       nil

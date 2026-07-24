@@ -5,9 +5,11 @@ require "uri"
 module ::DiscourseAffiliate
   class RuleMatcher
     Match = Struct.new(:rule, :observe_only, keyword_init: true)
+    ALLOWED_CONTEXTS = %w[public_post private_message chat].freeze
 
-    def initialize(payload:, category_id:, staff:, cohort:)
+    def initialize(payload:, context_kind:, category_id:, staff:, cohort:)
       @payload = payload || {}
+      @context_kind = context_kind.to_s
       @category_id = category_id&.to_i
       @staff = staff == true
       @cohort = cohort.to_i.clamp(0, 99)
@@ -19,6 +21,7 @@ module ::DiscourseAffiliate
 
     def match(url)
       return nil unless enabled?
+      return nil unless ALLOWED_CONTEXTS.include?(@context_kind)
 
       uri = URI.parse(url.to_s)
       return nil unless uri.is_a?(URI::HTTPS) && uri.host.present?
@@ -43,7 +46,7 @@ module ::DiscourseAffiliate
 
     def matches_rule?(rule, uri)
       return false unless host_matches?(rule, uri.host.downcase)
-      return false unless Array(rule["allowed_contexts"] || ["public_post"]).include?("public_post")
+      return false unless Array(rule["allowed_contexts"] || ["public_post"]).include?(@context_kind)
       return false if rule["staff_only"] == true && !@staff
       return false if !@staff && @cohort >= rule.fetch("rollout_percentage", 0).to_i.clamp(0, 100)
       return false unless category_allowed?(rule)

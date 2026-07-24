@@ -29,21 +29,12 @@ module ::DiscourseAffiliate
       @document.css("a[href]").each_with_object(Set.new) do |anchor, output|
         next if excluded?(anchor)
 
-        normalized = normalize(anchor["href"])
+        normalized = self.class.normalize_url(anchor["href"])
         output << normalized if normalized.present?
       end
     end
 
-    private
-
-    def excluded?(anchor)
-      classes = anchor["class"].to_s.split
-      return true if (classes & EXCLUDED_LINK_CLASSES).any?
-
-      EXCLUDED_ANCESTOR_SELECTORS.any? { |selector| anchor.ancestors(selector).any? }
-    end
-
-    def normalize(value)
+    def self.normalize_url(value)
       uri = URI.parse(value.to_s.strip)
       return nil unless uri.is_a?(URI::HTTPS)
       return nil if uri.host.blank? || uri.userinfo.present?
@@ -59,11 +50,20 @@ module ::DiscourseAffiliate
       nil
     end
 
-    def internal_host?(host)
+    def self.internal_host?(host)
       base = URI.parse(Discourse.base_url)
       host.casecmp?(base.host.to_s)
     rescue URI::InvalidURIError
       true
+    end
+
+    private
+
+    def excluded?(anchor)
+      classes = anchor["class"].to_s.split
+      return true if (classes & EXCLUDED_LINK_CLASSES).any?
+
+      EXCLUDED_ANCESTOR_SELECTORS.any? { |selector| anchor.ancestors(selector).any? }
     end
   end
 end
