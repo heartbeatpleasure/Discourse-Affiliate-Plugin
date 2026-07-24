@@ -1,0 +1,10 @@
+en:
+  site_settings:
+    affiliate_resolver_enabled: "Enable the Discourse affiliate resolver. Keep disabled until a reviewed observe-only pilot is ready."
+    affiliate_resolver_platform_base_url: "Affiliate platform base URL. HTTPS only, without a path, query, fragment, or credentials."
+    affiliate_resolver_platform_api_token: "Secret integration token with rules:read and resolve:write scopes. This value is never sent to browsers."
+    affiliate_resolver_local_observe_only: "Local safety switch. When enabled, proposed rewrites are inspected but original links remain unchanged."
+    affiliate_resolver_local_staff_only: "Only allow staff members to participate in the local pilot."
+    affiliate_resolver_request_timeout_ms: "Hard timeout for affiliate platform requests in milliseconds. Maximum 300 ms."
+    affiliate_resolver_click_beacon_enabled: "Send the approved first-party click beacon only after a deliberate member click."
+    affiliate_resolver_debug_logging_enabled: "Record additional sanitized success events. Never records post text, usernames, complete topic URLs, or API tokens."
