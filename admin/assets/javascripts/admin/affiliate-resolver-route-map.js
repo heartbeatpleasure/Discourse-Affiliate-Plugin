@@ -2,6 +2,6 @@ export default {
   resource: "admin.adminPlugins",
   path: "/plugins",
   map() {
-    this.route("affiliateResolver", { path: "/affiliate-resolver" });
+    // Obsolete pre-modern route map intentionally left empty.
   },
 };
