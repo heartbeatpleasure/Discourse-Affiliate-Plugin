@@ -1,18 +1,18 @@
 # frozen_string_literal: true
 
-# name: Discourse-Affiliate-Plugin
+# name: Discourse-Affiliate-Resolver
 # about: Privacy-safe affiliate link resolution for public Discourse topic posts.
-# version: 0.1.1
+# version: 0.1.2
 # authors: Chris
 # url: https://github.com/xxxxxx/Discourse-Affiliate-Plugin
 
-add_admin_route "affiliate_resolver.title", "affiliate-resolver", { use_new_show_route: true }
+add_admin_route "admin.affiliate_resolver.title", "affiliateResolver"
 
 enabled_site_setting :affiliate_resolver_enabled
 
 module ::DiscourseAffiliate
-  PLUGIN_NAME = "Discourse-Affiliate-Plugin"
-  PLUGIN_VERSION = "0.1.1"
+  PLUGIN_NAME = "Discourse-Affiliate-Resolver"
+  PLUGIN_VERSION = "0.1.2"
 end
 
 after_initialize do
@@ -74,6 +74,15 @@ after_initialize do
     post "/affiliate-resolver/resolve" => "discourse_affiliate/resolve#create",
          defaults: { format: :json }
 
+    # Match the proven Heartrate admin pattern: a dedicated overview plus
+    # separate Health and Logs pages under adminPlugins.
+    get "/admin/plugins/affiliate-resolver" => "admin/plugins#index",
+        constraints: AdminConstraint.new
+    get "/admin/plugins/affiliate-resolver-health" => "admin/plugins#index",
+        constraints: AdminConstraint.new
+    get "/admin/plugins/affiliate-resolver-logs" => "admin/plugins#index",
+        constraints: AdminConstraint.new
+
     get "/admin/plugins/affiliate-resolver/health.json" =>
           "discourse_affiliate/admin_health#index",
         defaults: { format: :json },
@@ -84,12 +93,6 @@ after_initialize do
          constraints: AdminConstraint.new
     get "/admin/plugins/affiliate-resolver/logs.json" => "discourse_affiliate/admin_logs#index",
         defaults: { format: :json },
-        constraints: AdminConstraint.new
-
-    # These routes let direct reloads of the modern plugin tabs return the admin SPA.
-    get "/admin/plugins/affiliate-resolver/health" => "admin/plugins#index",
-        constraints: AdminConstraint.new
-    get "/admin/plugins/affiliate-resolver/logs" => "admin/plugins#index",
         constraints: AdminConstraint.new
   end
 end

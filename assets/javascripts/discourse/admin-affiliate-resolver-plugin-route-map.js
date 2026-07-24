@@ -1,9 +1,8 @@
 export default {
   resource: "admin.adminPlugins.show",
   path: "/plugins",
-
   map() {
-    this.route("affiliate-resolver-health", { path: "health" });
-    this.route("affiliate-resolver-logs", { path: "logs" });
+    // Intentionally empty. Affiliate Resolver uses the proven Heartrate-style
+    // adminPlugins overview, Health, and Logs routes instead of nested show tabs.
   },
 };
