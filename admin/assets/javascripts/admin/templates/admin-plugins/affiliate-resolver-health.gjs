@@ -57,8 +57,7 @@ export default RouteTemplate(
       }
 
       .affiliate-health__muted,
-      .affiliate-health__card-detail,
-      .affiliate-health__action-help {
+      .affiliate-health__card-detail {
         color: var(--affiliate-health-muted);
         font-size: var(--font-down-1);
       }
@@ -68,7 +67,6 @@ export default RouteTemplate(
         max-width: 680px;
         flex-direction: column;
         align-items: flex-end;
-        gap: 0.45rem;
       }
 
       .affiliate-health__actions {
@@ -79,11 +77,6 @@ export default RouteTemplate(
         gap: 0.65rem;
       }
 
-      .affiliate-health__action-help {
-        max-width: 620px;
-        text-align: right;
-        line-height: 1.35;
-      }
 
       .affiliate-health__status {
         display: inline-flex;
@@ -171,6 +164,7 @@ export default RouteTemplate(
         font-size: var(--font-up-1);
         font-weight: 700;
         line-height: 1.2;
+        white-space: pre-line;
       }
 
       .affiliate-health__badge {
@@ -296,10 +290,6 @@ export default RouteTemplate(
         .affiliate-health__actions {
           justify-content: flex-start;
         }
-
-        .affiliate-health__action-help {
-          text-align: left;
-        }
       }
 
       @media (max-width: 620px) {
@@ -362,14 +352,14 @@ export default RouteTemplate(
               <button
                 class="btn btn-primary"
                 type="button"
-                disabled={{@controller.isTestingPlatform}}
-                title={{i18n "admin.affiliate_resolver.health.test_platform_help"}}
-                {{on "click" @controller.testPlatform}}
+                disabled={{@controller.isCheckingPlatform}}
+                title={{i18n "admin.affiliate_resolver.health.check_platform_help"}}
+                {{on "click" @controller.checkPlatform}}
               >
                 {{if
-                  @controller.isTestingPlatform
-                  (i18n "admin.affiliate_resolver.health.testing")
-                  (i18n "admin.affiliate_resolver.health.test_platform")
+                  @controller.isCheckingPlatform
+                  (i18n "admin.affiliate_resolver.health.checking")
+                  (i18n "admin.affiliate_resolver.health.check_platform")
                 }}
               </button>
 
@@ -388,10 +378,6 @@ export default RouteTemplate(
                 {{i18n "admin.affiliate_resolver.health.back_to_overview"}}
               </a>
             </div>
-
-            <p class="affiliate-health__action-help">
-              {{i18n "admin.affiliate_resolver.health.action_explanation"}}
-            </p>
           </div>
         </div>
       </section>

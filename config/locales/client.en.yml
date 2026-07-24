@@ -8,7 +8,7 @@ en:
     admin:
       affiliate_resolver:
         title: "Affiliate Resolver"
-        description: "Manage the local Discourse side of the privacy-safe affiliate pilot."
+        description: "Manage the Discourse side of privacy-safe affiliate link resolution."
         open_settings: "Open settings"
         open_tool: "Open"
         category_configuration: "Configuration"
@@ -16,18 +16,17 @@ en:
         overview_title: "Plugin tools"
         overview_description: "Review configuration, platform connectivity, cached rules, and sanitized operational events."
         settings_title: "Plugin settings"
-        settings_description: "Configure the local kill switch, platform endpoint, secret token, timeout, and pilot safeguards."
+        settings_description: "Configure the local kill switch, platform endpoint, secret token, timeout, and resolver safeguards."
         health:
           short_title: "Health"
           title: "Affiliate Resolver health"
-          description: "Review secure platform connectivity, pilot safeguards, cached rules, and recent privacy-safe activity."
-          refresh: "Refresh"
+          description: "Review secure platform connectivity, resolver safeguards, cached rules, and recent privacy-safe activity."
+          refresh: "Refresh status"
           refreshing: "Refreshing…"
-          refresh_help: "Reload the current health snapshot without contacting the affiliate platform."
-          test_platform: "Test platform"
-          testing: "Testing…"
-          test_platform_help: "Contact the affiliate platform now, authenticate, and refresh the rules cache."
-          action_explanation: "Refresh reloads the local snapshot. Test platform performs a real authenticated rules request and updates the cache."
+          refresh_help: "Reload the locally stored health information without contacting the affiliate platform."
+          check_platform: "Check platform"
+          checking: "Checking…"
+          check_platform_help: "Verify the secure platform connection and refresh the current rules cache."
           back_to_overview: "Back to overview"
           loading: "Loading health data…"
           load_error: "Health data could not be loaded."
@@ -41,7 +40,7 @@ en:
           configured_https: "Configured with HTTPS"
           missing: "Missing"
           operational_status: "Operational status"
-          operational_description: "Warnings explain exactly what prevents a safe observe-only pilot or what still needs review."
+          operational_description: "Warnings identify configuration, connectivity, or rule conditions that currently prevent link resolution."
           no_warnings: "No operational warnings were detected in the current health snapshot."
           state:
             inactive: "Inactive"
@@ -54,15 +53,15 @@ en:
           summary:
             platform_connection: "Platform connection"
             rules_cache: "Rules cache"
-            pilot_mode: "Pilot safeguards"
-            last_platform_call: "Last platform test"
+            safeguard_mode: "Resolver safeguards"
+            last_platform_call: "Last platform check"
             active_rules: "%{count} active rule(s)"
             not_available: "Not available"
             cache_detail: "Last refreshed %{time}."
-            cache_empty_detail: "Run Test platform after the URL and token are configured."
+            cache_empty_detail: "Use Check platform after the URL and token are configured."
             plugin_disabled: "Plugin disabled"
-            pilot_detail: "%{timeout} ms timeout · Click beacon: %{beacon}"
-            not_tested: "Not tested yet"
+            safeguard_detail: "%{timeout} ms timeout · Click beacon: %{beacon}"
+            not_checked: "Not checked yet"
             latency_detail: "Completed in %{latency} ms."
             no_latency: "No successful platform request has been recorded."
             token_missing: "API token missing"
@@ -70,7 +69,7 @@ en:
             connected: "Connected"
             url_invalid_detail: "The configured origin is rejected before any token or request is sent."
             token_missing_detail: "Create an Integration Client token on the affiliate platform and store it in the secret plugin setting."
-            connection_ready_detail: "Configuration is valid. Use Test platform to verify authentication and refresh the rules cache."
+            connection_ready_detail: "Configuration is valid. Use Check platform to verify authentication and refresh the rules cache."
             observe_only: "Observe-only"
             rewrite_active: "Rewriting active"
             staff_only: "Staff only"
@@ -132,7 +131,7 @@ en:
               description: "Enter only a valid HTTPS origin without a path, query, fragment, credentials, localhost, or an IP address."
             url_https_required:
               title: "HTTPS is required"
-              description: "The current HTTP test URL is intentionally rejected because the bearer token would otherwise travel unencrypted. Add TLS to the affiliate test domain before continuing."
+              description: "The current HTTP URL is intentionally rejected because the bearer token would otherwise travel unencrypted. Add TLS to the affiliate domain before continuing."
             url_host_missing:
               title: "Platform hostname is missing"
               description: "Enter the complete HTTPS origin, including a valid hostname."
@@ -159,22 +158,16 @@ en:
               description: "Create an enabled Integration Client with rules:read and resolve:write scopes, then store its token in the secret setting."
             cache_unavailable:
               title: "Rules have not been cached yet"
-              description: "Use Test platform to verify the URL, authenticate, and fetch the current rules."
+              description: "Use Check platform to verify the URL, authenticate, and fetch the current rules."
             platform_disabled:
               title: "The resolver is disabled on the affiliate platform"
               description: "The platform kill switch prevents rewrite decisions even though the Discourse plugin is enabled."
             no_active_rules:
               title: "No active host rules are available"
-              description: "The connection can be healthy while the pilot remains inactive until a reviewed host rule is published."
-            local_rewrite_active:
-              title: "Local observe-only is disabled"
-              description: "The plugin may apply approved rewrites. Keep observe-only enabled during the initial staff pilot."
-            all_members_enabled:
-              title: "The pilot is not limited to staff"
-              description: "Keep local staff-only enabled until the test-server pilot has been reviewed."
+              description: "The connection is healthy, but no links can be evaluated until a reviewed host rule is published."
             last_rules_error:
               title: "The most recent rules request failed"
-              description: "%{time}: %{error}. Use Test platform after correcting the configuration."
+              description: "%{time}: %{error}. Use Check platform after correcting the configuration."
         logs:
           short_title: "Logs"
           title: "Affiliate Resolver Logs"

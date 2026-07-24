@@ -81,7 +81,7 @@ function platformErrorLabel(code) {
 export default class AdminPluginsAffiliateResolverHealthController extends Controller {
   @tracked data = null;
   @tracked isLoading = false;
-  @tracked isTestingPlatform = false;
+  @tracked isCheckingPlatform = false;
   @tracked error = null;
 
   resetState() {
@@ -108,12 +108,12 @@ export default class AdminPluginsAffiliateResolverHealthController extends Contr
   }
 
   @action
-  async testPlatform() {
-    if (this.isTestingPlatform) {
+  async checkPlatform() {
+    if (this.isCheckingPlatform) {
       return;
     }
 
-    this.isTestingPlatform = true;
+    this.isCheckingPlatform = true;
     this.error = null;
 
     try {
@@ -124,7 +124,7 @@ export default class AdminPluginsAffiliateResolverHealthController extends Contr
     } catch (error) {
       this.error = extractError(error);
     } finally {
-      this.isTestingPlatform = false;
+      this.isCheckingPlatform = false;
     }
   }
 
@@ -179,11 +179,11 @@ export default class AdminPluginsAffiliateResolverHealthController extends Contr
         badgeClass: cache.available ? "is-ok" : "is-warning",
       },
       {
-        label: i18n("admin.affiliate_resolver.health.summary.pilot_mode"),
+        label: i18n("admin.affiliate_resolver.health.summary.safeguard_mode"),
         value: configuration.plugin_enabled
-          ? this.pilotModeValue
+          ? this.safeguardModeValue
           : i18n("admin.affiliate_resolver.health.summary.plugin_disabled"),
-        detail: i18n("admin.affiliate_resolver.health.summary.pilot_detail", {
+        detail: i18n("admin.affiliate_resolver.health.summary.safeguard_detail", {
           timeout: configuration.request_timeout_ms || 0,
           beacon: yesNo(configuration.click_beacon_enabled),
         }),
@@ -193,7 +193,7 @@ export default class AdminPluginsAffiliateResolverHealthController extends Contr
         label: i18n("admin.affiliate_resolver.health.summary.last_platform_call"),
         value: activity.last_rules_success_at
           ? formatDate(activity.last_rules_success_at)
-          : i18n("admin.affiliate_resolver.health.summary.not_tested"),
+          : i18n("admin.affiliate_resolver.health.summary.not_checked"),
         detail: activity.last_rules_latency_ms
           ? i18n("admin.affiliate_resolver.health.summary.latency_detail", {
               latency: activity.last_rules_latency_ms,
@@ -225,7 +225,7 @@ export default class AdminPluginsAffiliateResolverHealthController extends Contr
       return i18n("admin.affiliate_resolver.health.summary.connected");
     }
 
-    return i18n("admin.affiliate_resolver.health.summary.not_tested");
+    return i18n("admin.affiliate_resolver.health.summary.not_checked");
   }
 
   get platformConnectionDetail() {
@@ -263,23 +263,16 @@ export default class AdminPluginsAffiliateResolverHealthController extends Contr
     return cache.available ? "is-ok" : "is-info";
   }
 
-  get pilotModeValue() {
+  get safeguardModeValue() {
     const configuration = this.data?.configuration || {};
-    const parts = [];
+    const mode = configuration.local_observe_only
+      ? i18n("admin.affiliate_resolver.health.summary.observe_only")
+      : i18n("admin.affiliate_resolver.health.summary.rewrite_active");
+    const audience = configuration.local_staff_only
+      ? i18n("admin.affiliate_resolver.health.summary.staff_only")
+      : i18n("admin.affiliate_resolver.health.summary.all_members");
 
-    parts.push(
-      configuration.local_observe_only
-        ? i18n("admin.affiliate_resolver.health.summary.observe_only")
-        : i18n("admin.affiliate_resolver.health.summary.rewrite_active")
-    );
-
-    parts.push(
-      configuration.local_staff_only
-        ? i18n("admin.affiliate_resolver.health.summary.staff_only")
-        : i18n("admin.affiliate_resolver.health.summary.all_members")
-    );
-
-    return parts.join(" · ");
+    return `${mode} -\n${audience}`;
   }
 
   get warnings() {
@@ -318,14 +311,6 @@ export default class AdminPluginsAffiliateResolverHealthController extends Contr
 
     if (cache.available && cache.active_rules === 0) {
       warnings.push(this.warning("no_active_rules", "info"));
-    }
-
-    if (!configuration.local_observe_only) {
-      warnings.push(this.warning("local_rewrite_active", "warning"));
-    }
-
-    if (!configuration.local_staff_only) {
-      warnings.push(this.warning("all_members_enabled", "warning"));
     }
 
     if (activity.last_rules_error_code) {
