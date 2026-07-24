@@ -68,6 +68,7 @@ module ::DiscourseAffiliate
           cache_fetched_at: entry["fetched_at"],
           cache_expires_at: entry["expires_at"],
           last_rules_success_at: now.iso8601(3),
+          last_rules_error_at: nil,
           last_rules_error_code: nil,
           last_rules_latency_ms: response[:latency_ms].to_i,
         )
@@ -82,7 +83,7 @@ module ::DiscourseAffiliate
         )
         entry
       rescue ::DiscourseAffiliate::PlatformUrl::Invalid => error
-        record_error("misconfigured", error)
+        record_error(error.message, error)
         nil
       rescue ::DiscourseAffiliate::PlatformClient::Error => error
         record_error(error.code, error)

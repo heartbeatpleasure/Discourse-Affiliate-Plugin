@@ -31,13 +31,36 @@ module ::DiscourseAffiliate
       end
 
       def configured?
-        base
-        true
-      rescue Invalid
-        false
+        status[:configured]
+      end
+
+      def status
+        uri = base
+        {
+          configured: true,
+          error_code: nil,
+          scheme: uri.scheme,
+          secure: uri.is_a?(URI::HTTPS),
+        }
+      rescue Invalid => error
+        {
+          configured: false,
+          error_code: error.message.to_s.first(64),
+          scheme: configured_scheme,
+          secure: false,
+        }
       end
 
       private
+
+      def configured_scheme
+        raw = SiteSetting.affiliate_resolver_platform_base_url.to_s.strip
+        return nil if raw.blank?
+
+        URI.parse(raw).scheme.to_s.presence
+      rescue URI::InvalidURIError
+        nil
+      end
 
       def validate!(uri)
         raise Invalid, "https_required" unless uri.is_a?(URI::HTTPS)

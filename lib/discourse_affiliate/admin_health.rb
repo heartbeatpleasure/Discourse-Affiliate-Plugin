@@ -30,11 +30,16 @@ module ::DiscourseAffiliate
       private
 
       def configuration_payload
+        platform_url = ::DiscourseAffiliate::PlatformUrl.status
+
         {
           plugin_enabled: SiteSetting.affiliate_resolver_enabled,
           local_observe_only: SiteSetting.affiliate_resolver_local_observe_only,
           local_staff_only: SiteSetting.affiliate_resolver_local_staff_only,
-          platform_url_configured: ::DiscourseAffiliate::PlatformUrl.configured?,
+          platform_url_configured: platform_url[:configured],
+          platform_url_error_code: platform_url[:error_code],
+          platform_url_scheme: platform_url[:scheme],
+          platform_url_secure: platform_url[:secure],
           api_token_configured: SiteSetting.affiliate_resolver_platform_api_token.to_s.length >= 32,
           request_timeout_ms: SiteSetting.affiliate_resolver_request_timeout_ms.to_i.clamp(100, 300),
           click_beacon_enabled: SiteSetting.affiliate_resolver_click_beacon_enabled,
@@ -56,9 +61,17 @@ module ::DiscourseAffiliate
 
       def overall(configuration, cache, state)
         return { state: "inactive", severity: "info" } unless configuration[:plugin_enabled]
-        return { state: "unhealthy", severity: "critical" } unless configuration[:platform_url_configured] && configuration[:api_token_configured]
+
+        unless configuration[:platform_url_configured] && configuration[:api_token_configured]
+          return { state: "unhealthy", severity: "critical" }
+        end
+
         return { state: "warning", severity: "warning" } unless cache[:available]
-        return { state: "warning", severity: "warning" } if state["last_rules_error_at"].present? && state["last_rules_success_at"].blank?
+        return { state: "warning", severity: "warning" } unless cache[:enabled]
+
+        if state["last_rules_error_at"].present? && state["last_rules_success_at"].blank?
+          return { state: "warning", severity: "warning" }
+        end
 
         { state: "ready", severity: "ok" }
       end
