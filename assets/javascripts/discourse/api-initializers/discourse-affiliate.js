@@ -17,8 +17,6 @@ export const COOKED_DECORATOR_OPTIONS = {
 };
 
 const EXCLUDED_SELECTOR = [
-  "aside.onebox a",
-  ".onebox a",
   "blockquote a",
   ".quote a",
   "a.mention",
@@ -28,11 +26,9 @@ const EXCLUDED_SELECTOR = [
   "a.attachment",
 ].join(",");
 
-function externalHttpsUrl(anchor) {
+function externalHttpsUrlFromValue(value) {
   try {
-    const sourceHref =
-      anchor.getAttribute(ORIGINAL_HREF_ATTRIBUTE) || anchor.href;
-    const url = new URL(sourceHref, window.location.origin);
+    const url = new URL(value, window.location.origin);
     if (url.protocol !== "https:" || url.origin === window.location.origin) {
       return null;
     }
@@ -42,17 +38,69 @@ function externalHttpsUrl(anchor) {
   }
 }
 
+function externalHttpsUrl(anchor) {
+  const sourceHref =
+    anchor.getAttribute(ORIGINAL_HREF_ATTRIBUTE) || anchor.href;
+  return externalHttpsUrlFromValue(sourceHref);
+}
+
+export function affiliateCandidateUrl(anchor) {
+  const href = externalHttpsUrl(anchor);
+  if (!href) {
+    return null;
+  }
+
+  const onebox = anchor.closest(
+    "aside.onebox[data-onebox-src], .onebox[data-onebox-src]"
+  );
+  if (!onebox) {
+    return href;
+  }
+
+  const sourceUrl = externalHttpsUrlFromValue(
+    onebox.getAttribute("data-onebox-src")
+  );
+
+  // Oneboxes can contain author, metadata, or related links. Only links that
+  // point to the original oneboxed URL may inherit its affiliate rewrite.
+  return sourceUrl && href === sourceUrl ? sourceUrl : null;
+}
+
 function eligibleAnchors(element) {
-  return Array.from(element.querySelectorAll("a[href]"))
-    .filter((anchor) => !anchor.matches(EXCLUDED_SELECTOR))
-    .filter((anchor) => !anchor.hasAttribute(PROCESSED_ATTRIBUTE))
-    .map((anchor, index) => ({
+  const entriesByUrl = new Map();
+
+  for (const anchor of element.querySelectorAll("a[href]")) {
+    if (anchor.matches(EXCLUDED_SELECTOR)) {
+      continue;
+    }
+    if (anchor.hasAttribute(PROCESSED_ATTRIBUTE)) {
+      continue;
+    }
+
+    const url = affiliateCandidateUrl(anchor);
+    if (!url) {
+      continue;
+    }
+
+    const existing = entriesByUrl.get(url);
+    if (existing) {
+      existing.anchors.push(anchor);
+      continue;
+    }
+
+    if (entriesByUrl.size >= MAX_LINKS) {
+      continue;
+    }
+
+    entriesByUrl.set(url, {
       anchor,
-      key: `link-${index + 1}`,
-      url: externalHttpsUrl(anchor),
-    }))
-    .filter((entry) => entry.url)
-    .slice(0, MAX_LINKS);
+      anchors: [anchor],
+      key: `link-${entriesByUrl.size + 1}`,
+      url,
+    });
+  }
+
+  return Array.from(entriesByUrl.values());
 }
 
 function sendClickBeacon(url) {
@@ -354,8 +402,10 @@ async function processSource(
   }
 
   inFlightElements.add(element);
-  entries.forEach(({ anchor }) =>
-    anchor.setAttribute(PROCESSED_ATTRIBUTE, "1")
+  entries.forEach(({ anchors }) =>
+    anchors.forEach((anchor) =>
+      anchor.setAttribute(PROCESSED_ATTRIBUTE, "1")
+    )
   );
 
   const rerun = async () => {
@@ -382,7 +432,9 @@ async function processSource(
     for (const entry of entries) {
       const result = results.get(entry.key);
       if (result?.applied) {
-        applyRewrite(entry.anchor, result.rewrite, siteSettings);
+        entry.anchors.forEach((anchor) =>
+          applyRewrite(anchor, result.rewrite, siteSettings)
+        );
         appliedResults.push(result);
       }
     }
@@ -406,8 +458,10 @@ async function processSource(
     }
   } catch {
     // Mandatory fail-open behavior: original links stay untouched.
-    entries.forEach(({ anchor }) =>
-      anchor.removeAttribute(PROCESSED_ATTRIBUTE)
+    entries.forEach(({ anchors }) =>
+      anchors.forEach((anchor) =>
+        anchor.removeAttribute(PROCESSED_ATTRIBUTE)
+      )
     );
   } finally {
     inFlightElements.delete(element);

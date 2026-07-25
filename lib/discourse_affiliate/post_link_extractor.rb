@@ -7,8 +7,6 @@ require "uri"
 module ::DiscourseAffiliate
   class PostLinkExtractor
     EXCLUDED_ANCESTOR_SELECTORS = [
-      "aside.onebox",
-      ".onebox",
       "blockquote",
       ".quote",
     ].freeze
@@ -20,18 +18,37 @@ module ::DiscourseAffiliate
       attachment
       onebox
     ].freeze
+    ONEBOX_SELECTORS = [
+      "aside.onebox[data-onebox-src]",
+      ".onebox[data-onebox-src]",
+    ].freeze
+    ONEBOX_SELECTOR = ONEBOX_SELECTORS.join(", ")
 
     def initialize(cooked)
       @document = Nokogiri::HTML5.fragment(cooked.to_s)
     end
 
     def eligible_urls
-      @document.css("a[href]").each_with_object(Set.new) do |anchor, output|
-        next if excluded?(anchor)
+      @document
+        .css("a[href], #{ONEBOX_SELECTOR}")
+        .each_with_object(Set.new) do |node, output|
+          if node["data-onebox-src"].present?
+            next if excluded_container?(node)
 
-        normalized = self.class.normalize_url(anchor["href"])
-        output << normalized if normalized.present?
-      end
+            normalized = self.class.normalize_url(node["data-onebox-src"])
+            output << normalized if normalized.present?
+            next
+          end
+
+          # Onebox links are validated against the server-generated
+          # data-onebox-src value above. Ignore author, metadata, and related
+          # links contained inside the preview itself.
+          next if onebox_ancestor?(node)
+          next if excluded?(node)
+
+          normalized = self.class.normalize_url(node["href"])
+          output << normalized if normalized.present?
+        end
     end
 
     def self.normalize_url(value)
@@ -63,7 +80,15 @@ module ::DiscourseAffiliate
       classes = anchor["class"].to_s.split
       return true if (classes & EXCLUDED_LINK_CLASSES).any?
 
-      EXCLUDED_ANCESTOR_SELECTORS.any? { |selector| anchor.ancestors(selector).any? }
+      excluded_container?(anchor)
+    end
+
+    def onebox_ancestor?(node)
+      ONEBOX_SELECTORS.any? { |selector| node.ancestors(selector).any? }
+    end
+
+    def excluded_container?(node)
+      EXCLUDED_ANCESTOR_SELECTORS.any? { |selector| node.ancestors(selector).any? }
     end
   end
 end
