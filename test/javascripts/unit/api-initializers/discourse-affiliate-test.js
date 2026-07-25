@@ -1,6 +1,9 @@
 import { module, test } from "qunit";
 import {
+  afterChatMessageMount,
   affiliateCandidateUrl,
+  chatDecoratorElement,
+  chatMessageIdFromDecorator,
   chatMessageIdFromElement,
   COOKED_DECORATOR_OPTIONS,
   postContextKind,
@@ -80,6 +83,49 @@ module("Unit | Affiliate Resolver | cooked decorator", function () {
       wrapper.appendChild(cooked);
 
       assert.strictEqual(chatMessageIdFromElement(cooked), 412);
+    }
+  );
+
+  test(
+    "waits for detached Chat cooked HTML to be mounted before reading its id",
+    function (assert) {
+      const scheduled = [];
+      const cooked = document.createElement("div");
+      let resolvedId = null;
+
+      afterChatMessageMount(cooked, (id) => (resolvedId = id), {
+        schedule: (callback) => scheduled.push(callback),
+      });
+
+      assert.strictEqual(resolvedId, null, "the detached element has no id yet");
+      assert.strictEqual(scheduled.length, 1, "a post-render check is scheduled");
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "chat-message-container";
+      wrapper.dataset.id = "413";
+      wrapper.appendChild(cooked);
+      scheduled.shift()();
+
+      assert.strictEqual(resolvedId, 413, "the id is read after mounting");
+    }
+  );
+
+  test(
+    "supports both current and legacy Chat decorator signatures",
+    function (assert) {
+      const cooked = document.createElement("div");
+      const container = document.createElement("div");
+
+      assert.strictEqual(chatDecoratorElement(cooked, {}), cooked);
+      assert.strictEqual(chatDecoratorElement({ id: 414 }, container), container);
+      assert.strictEqual(
+        chatMessageIdFromDecorator({ id: 414 }, container),
+        414
+      );
+      assert.strictEqual(
+        chatMessageIdFromDecorator({ message: { id: 415 } }, container),
+        415
+      );
     }
   );
 

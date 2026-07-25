@@ -262,6 +262,59 @@ export function chatMessageIdFromElement(element) {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
+function isDomElement(value) {
+  return value?.nodeType === 1 && typeof value.querySelectorAll === "function";
+}
+
+export function chatDecoratorElement(first, second) {
+  if (isDomElement(first)) {
+    return first;
+  }
+  if (isDomElement(second)) {
+    return second;
+  }
+  return null;
+}
+
+export function chatMessageIdFromDecorator(first, second) {
+  for (const candidate of [first, second]) {
+    if (!candidate || isDomElement(candidate)) {
+      continue;
+    }
+
+    const value = candidate.id ?? candidate.message?.id;
+    const id = Number.parseInt(value, 10);
+    if (Number.isSafeInteger(id) && id > 0) {
+      return id;
+    }
+  }
+
+  return null;
+}
+
+export function afterChatMessageMount(
+  element,
+  callback,
+  { attempts = 4, schedule = (fn) => requestAnimationFrame(fn) } = {}
+) {
+  let remaining = attempts;
+
+  const check = () => {
+    const messageId = chatMessageIdFromElement(element);
+    if (messageId) {
+      callback(messageId);
+      return;
+    }
+
+    remaining -= 1;
+    if (remaining > 0) {
+      schedule(check);
+    }
+  };
+
+  schedule(check);
+}
+
 function sourcePayload(source) {
   if (source.type === "chat") {
     return { chat_message_id: source.id };
@@ -506,20 +559,30 @@ export default apiInitializer("1.0", (api) => {
     siteSettings.affiliate_resolver_chat_enabled === true &&
     typeof api.decorateChatMessage === "function"
   ) {
-    api.decorateChatMessage((element) => {
-      const messageId = chatMessageIdFromElement(element);
-      if (!messageId) {
+    api.decorateChatMessage((first, second) => {
+      const element = chatDecoratorElement(first, second);
+      if (!element) {
         return;
       }
 
-      queueMicrotask(() =>
+      const processMessage = (messageId) =>
         processSource(
           element,
           { type: "chat", id: messageId, kind: "chat" },
           siteSettings,
           currentUser
-        )
-      );
+        );
+
+      const modelMessageId = chatMessageIdFromDecorator(first, second);
+      if (modelMessageId) {
+        queueMicrotask(() => processMessage(modelMessageId));
+        return;
+      }
+
+      // DDecoratedHtml invokes Chat decorators while the cooked element still
+      // belongs to a detached document. Wait until Glimmer has mounted it so
+      // the official .chat-message-container[data-id] ancestor is available.
+      afterChatMessageMount(element, processMessage);
     });
   }
 });
