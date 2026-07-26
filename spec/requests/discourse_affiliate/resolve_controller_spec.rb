@@ -43,6 +43,33 @@ RSpec.describe DiscourseAffiliate::ResolveController do
     )
   end
 
+  it "keeps public posts enabled by default for backwards compatibility" do
+    DiscourseAffiliate::RulesCache.stubs(:current).returns(nil)
+
+    post "/affiliate-resolver/resolve.json",
+         params: {
+           post_id: post.id,
+           links: [{ key: "link-1", url: "https://merchant.example/product" }],
+         }
+
+    expect(response.status).to eq(200)
+    expect(response.parsed_body["reason"]).to eq("rules_unavailable")
+  end
+
+  it "allows public posts to be disabled independently" do
+    SiteSetting.affiliate_resolver_public_posts_enabled = false
+
+    post "/affiliate-resolver/resolve.json",
+         params: {
+           post_id: post.id,
+           links: [{ key: "link-1", url: "https://merchant.example/product" }],
+         }
+
+    expect(response.status).to eq(200)
+    expect(response.parsed_body["reason"]).to eq("context_disabled")
+    expect(response.parsed_body["results"]).to eq([])
+  end
+
   it "keeps personal messages disabled by default" do
     message = Fabricate(:private_message_post, user: user)
 
@@ -93,7 +120,12 @@ RSpec.describe DiscourseAffiliate::ResolveController do
 
     expect(response.status).to eq(200)
     expect(captured_payload.dig(:context, :kind)).to eq("private_message")
-    expect(captured_payload[:context].keys).not_to include(:username, :participants, :post_text)
+    expect(captured_payload[:context].keys).not_to include(
+      :username,
+      :participants,
+      :post_text,
+      :topic_id,
+    )
     expect(captured_payload.dig(:context, :source_ref_hash)).to match(/\A[a-f0-9]{64}\z/)
   end
 

@@ -2,7 +2,7 @@
 
 # name: Discourse-Affiliate-Plugin
 # about: Privacy-safe affiliate link resolution for Discourse posts, personal messages, and Chat.
-# version: 0.1.10
+# version: 0.1.11
 # authors: Chris
 # url: https://github.com/xxxxxx/Discourse-Affiliate-Plugin
 
@@ -14,7 +14,7 @@ register_asset "stylesheets/common/affiliate-resolver.scss"
 
 module ::DiscourseAffiliate
   PLUGIN_NAME = "Discourse-Affiliate-Plugin"
-  PLUGIN_VERSION = "0.1.10"
+  PLUGIN_VERSION = "0.1.11"
 end
 
 after_initialize do
@@ -83,6 +83,7 @@ after_initialize do
       affiliate_resolver_platform_api_token
       affiliate_resolver_local_observe_only
       affiliate_resolver_local_staff_only
+      affiliate_resolver_public_posts_enabled
       affiliate_resolver_personal_messages_enabled
       affiliate_resolver_chat_enabled
       affiliate_resolver_request_timeout_ms

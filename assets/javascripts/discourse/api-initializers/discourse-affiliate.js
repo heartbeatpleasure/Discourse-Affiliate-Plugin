@@ -322,14 +322,17 @@ function sourcePayload(source) {
   return { post_id: source.id };
 }
 
-function sourceContextEnabled(source, siteSettings) {
+export function sourceContextEnabled(source, siteSettings) {
   if (source.kind === "private_message") {
     return siteSettings.affiliate_resolver_personal_messages_enabled === true;
   }
   if (source.kind === "chat") {
     return siteSettings.affiliate_resolver_chat_enabled === true;
   }
-  return source.kind === "public_post";
+  if (source.kind === "public_post") {
+    return siteSettings.affiliate_resolver_public_posts_enabled !== false;
+  }
+  return false;
 }
 
 function button(label, action, className = "") {

@@ -8,6 +8,7 @@ import {
   COOKED_DECORATOR_OPTIONS,
   postContextKind,
   postFromHelper,
+  sourceContextEnabled,
 } from "discourse/plugins/Discourse-Affiliate-Plugin/discourse/api-initializers/discourse-affiliate";
 
 module("Unit | Affiliate Resolver | cooked decorator", function () {
@@ -39,6 +40,46 @@ module("Unit | Affiliate Resolver | cooked decorator", function () {
       "public_post"
     );
   });
+
+  test(
+    "keeps each content context independently switchable",
+    function (assert) {
+      const settings = {
+        affiliate_resolver_public_posts_enabled: true,
+        affiliate_resolver_personal_messages_enabled: false,
+        affiliate_resolver_chat_enabled: false,
+      };
+
+      assert.true(
+        sourceContextEnabled({ kind: "public_post" }, settings),
+        "public posts preserve the existing enabled default"
+      );
+      assert.true(
+        sourceContextEnabled({ kind: "public_post" }, {}),
+        "an older cached client setting payload preserves public-post behaviour"
+      );
+      assert.false(
+        sourceContextEnabled({ kind: "private_message" }, settings),
+        "personal messages remain independently disabled"
+      );
+      assert.false(
+        sourceContextEnabled({ kind: "chat" }, settings),
+        "Chat remains independently disabled"
+      );
+
+      settings.affiliate_resolver_public_posts_enabled = false;
+      settings.affiliate_resolver_personal_messages_enabled = true;
+      settings.affiliate_resolver_chat_enabled = true;
+
+      assert.false(
+        sourceContextEnabled({ kind: "public_post" }, settings),
+        "public posts can be disabled without disabling private contexts"
+      );
+      assert.true(sourceContextEnabled({ kind: "private_message" }, settings));
+      assert.true(sourceContextEnabled({ kind: "chat" }, settings));
+      assert.false(sourceContextEnabled({ kind: "preview" }, settings));
+    }
+  );
 
   test(
     "uses the original onebox URL only for matching onebox links",

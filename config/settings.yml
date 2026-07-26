@@ -22,6 +22,10 @@ plugins:
     default: true
     client: true
 
+  affiliate_resolver_public_posts_enabled:
+    default: true
+    client: true
+
   affiliate_resolver_personal_messages_enabled:
     default: false
     client: true

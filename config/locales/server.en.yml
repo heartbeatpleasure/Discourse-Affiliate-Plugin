@@ -5,6 +5,7 @@ en:
     affiliate_resolver_platform_api_token: "Secret integration token with rules:read and resolve:write scopes. This value is never sent to browsers."
     affiliate_resolver_local_observe_only: "Local safety switch. When enabled, proposed rewrites are inspected but original links remain unchanged."
     affiliate_resolver_local_staff_only: "Restrict link resolution to staff members. Disable only when the resolver is ready for all eligible members."
+    affiliate_resolver_public_posts_enabled: "Resolve eligible links in public topic posts. Enabled by default to preserve existing behaviour; disable independently without affecting personal messages or Chat."
     affiliate_resolver_personal_messages_enabled: "Resolve eligible links in personal messages. Disabled by default; raw message content remains unchanged and the original link is used on any error."
     affiliate_resolver_chat_enabled: "Resolve eligible links in Discourse Chat. Disabled by default; raw chat content remains unchanged and the original link is used on any error."
     affiliate_resolver_disclosure_enabled: "Show a short user-facing affiliate disclosure after content containing an applied rewrite. Disabled by default."

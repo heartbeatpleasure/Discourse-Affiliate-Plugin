@@ -68,7 +68,6 @@ module ::DiscourseAffiliate
         context: {
           kind: source.kind,
           category_id: source.category_id,
-          topic_id: source.topic_id,
           staff: user.staff?,
           cohort: cohort,
           source_ref_hash: ::DiscourseAffiliate::SourceReference.hash(source.source_type, source.source_id),

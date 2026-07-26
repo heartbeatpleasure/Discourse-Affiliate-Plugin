@@ -66,7 +66,7 @@ module ::DiscourseAffiliate
     def context_enabled?(kind)
       case kind
       when "public_post"
-        true
+        SiteSetting.affiliate_resolver_public_posts_enabled
       when "private_message"
         SiteSetting.affiliate_resolver_personal_messages_enabled
       when "chat"
